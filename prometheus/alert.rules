@@ -5,7 +5,7 @@ groups:
   # Alert for any instance that is unreachable for >2 minutes.
   - alert: service_down
     expr: up == 0
-    for: 2m
+    for: 1m
     labels:
       severity: page
     annotations:
@@ -14,9 +14,41 @@ groups:
 
   - alert: high_load
     expr: node_load1 > 0.5
-    for: 2m
+    for: 1m
     labels:
       severity: page
     annotations:
       summary: "Instance {{ $labels.instance }} under high load"
       description: "{{ $labels.instance }} of job {{ $labels.job }} is under high load."
+
+  - alert: processor_usage_too_high
+    expr: |
+      ((sum(node_cpu{mode=~"^(?:^(?:user|nice|system|irq|softirq|steal|idle|iowait)$)$"}) by (instance, job)) - (sum(node_cpu{mode=~"^(?:^(?:idle|iowait)$)$"}) by (instance, job))) / (sum(node_cpu{mode=~"^(?:^(?:user|nice|system|irq|softirq|steal|idle|iowait)$)$"}) by (instance, job)) * 100 > 95
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: 'Instance {{ $labels.instance }} of job {{ $labels.job }} has processor above 95% (current value: {{ printf "%.2f" $value }}%) for over 5 minutes'
+      summary: 'Processor usage above 95%'
+
+  - alert: swap_usage_above_50_percent
+    expr: |
+      (((node_memory_SwapTotal - node_memory_SwapFree) / node_memory_SwapTotal) * 100) > 50
+    for: 1m 
+    labels:
+      severity: moderate
+    annotations:
+      description: 'Instance {{ $labels.instance }} of job {{ $labels.job }} has swap usage above 20% (current value: {{ printf "%.2f" $value }}%) for over 1 hour'
+      summary: 'Swap usage above 20%'
+
+  - alert: memory_usage_above_90_percent
+    expr: |
+      (((node_memory_MemTotal - node_memory_MemFree - node_memory_Cached) / (node_memory_MemTotal) * 100)) > 95
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: 'Instance {{ $labels.instance }} of job {{ $labels.job }} has memory usage above 90% (current value: {{ printf "%.2f" $value }}%) for over 5 minutes'
+      summary: 'Memory usage above 90%'
+
+
